@@ -15,6 +15,9 @@ export interface HeatmapPoint {
 /** Shared buffer — AgentCursor pushes to this every frame */
 export const heatmapBuffer: HeatmapPoint[] = [];
 
+/** Clear signal — when true, the next frame wipes the canvas */
+let _clearRequested = false;
+
 export function pushHeatmapPoint(point: HeatmapPoint) {
   heatmapBuffer.push(point);
   if (heatmapBuffer.length > 8000) heatmapBuffer.splice(0, 1000);
@@ -22,6 +25,7 @@ export function pushHeatmapPoint(point: HeatmapPoint) {
 
 export function clearHeatmap() {
   heatmapBuffer.length = 0;
+  _clearRequested = true;
 }
 
 export default function HeatmapOverlay({
@@ -53,8 +57,19 @@ export default function HeatmapOverlay({
   }, []);
 
   useFrame(() => {
-    if (!visible || !ctxRef.current || !textureRef.current) return;
+    if (!ctxRef.current || !textureRef.current) return;
     const ctx = ctxRef.current;
+
+    // Handle clear request — wipe canvas, reset counter
+    if (_clearRequested) {
+      ctx.clearRect(0, 0, HEATMAP_RES, HEATMAP_RES);
+      processedRef.current = 0;
+      textureRef.current.needsUpdate = true;
+      _clearRequested = false;
+      return;
+    }
+
+    if (!visible) return;
     const len = heatmapBuffer.length;
     if (processedRef.current >= len) return;
 

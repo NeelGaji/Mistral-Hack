@@ -1,0 +1,219 @@
+.demo-panel {
+  width: 100%;
+  min-height: 100vh;
+  background: #050510;
+  color: #e0e0e0;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  padding: 36px 48px 80px;
+  box-sizing: border-box;
+}
+
+/* ── Header ── */
+.demo-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  margin-bottom: 36px;
+}
+
+.demo-logo {
+  font-size: 38px;
+  color: #6666ff;
+  filter: drop-shadow(0 0 10px #6666ff);
+  flex-shrink: 0;
+}
+
+.demo-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin: 0;
+  color: #fff;
+}
+
+.demo-subtitle {
+  font-size: 12px;
+  color: #555;
+  letter-spacing: 1px;
+  margin: 4px 0 0;
+}
+
+.demo-header-badge {
+  margin-left: auto;
+  font-size: 11px;
+  color: #6666ff;
+  letter-spacing: 1px;
+  border: 1px solid rgba(100, 100, 255, 0.3);
+  border-radius: 20px;
+  padding: 6px 14px;
+  background: rgba(100, 100, 255, 0.07);
+}
+
+/* ── Persona Row ── */
+.demo-persona-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 40px;
+}
+
+/* ── Detail Section ── */
+.demo-detail {
+  display: flex;
+  gap: 48px;
+  margin-bottom: 48px;
+  flex-wrap: wrap;
+}
+
+.demo-info {
+  flex: 1;
+  min-width: 300px;
+}
+
+.demo-persona-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.demo-persona-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.demo-info h2 {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.demo-cluster {
+  font-size: 12px;
+  color: #666;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.demo-desc {
+  font-size: 14px;
+  color: #888;
+  line-height: 1.7;
+  margin-bottom: 28px;
+  max-width: 460px;
+}
+
+.demo-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.metric-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 14px 18px;
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+.metric-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.metric-label {
+  display: block;
+  font-size: 10px;
+  color: #555;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.metric-value {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.demo-chart-area {
+  flex: 1;
+  min-width: 300px;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 8px;
+}
+
+/* ── Share Distribution ── */
+.demo-share-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 32px;
+}
+
+.demo-section-title {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #444;
+  margin-bottom: 20px;
+}
+
+.demo-share-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.share-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  padding: 4px 0;
+  border-radius: 6px;
+  transition: opacity 0.2s;
+}
+
+.share-row:hover {
+  opacity: 0.85;
+}
+
+.share-row-active .share-name {
+  font-weight: 700;
+}
+
+.share-name {
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  width: 160px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.share-track {
+  flex: 1;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.share-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.share-pct {
+  font-size: 12px;
+  font-weight: 700;
+  width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}

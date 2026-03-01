@@ -108,8 +108,9 @@ export default function HUD() {
               >
                 🔥 HEATMAP
               </button>
-              <button className="hud-btn" onClick={() => clearHeatmap()}>
-                🗑 CLEAR MAP
+              <button onClick={() => {
+  clearHeatmap()}}>
+                CLEAR MAP
               </button>
             </>
           )}
