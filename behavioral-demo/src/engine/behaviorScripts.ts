@@ -4,21 +4,15 @@ import { DEFAULT_HOTSPOTS, Hotspot } from '../data/hotspots';
 export type ActionType = 'move' | 'click' | 'hover' | 'scroll' | 'rage-click' | 'idle';
 
 export interface BehaviorStep {
-  /** Normalized 0-1 position on the website surface */
   x: number;
   y: number;
-  /** Action to perform at this position */
   action: ActionType;
-  /** Duration of this step in seconds */
   duration: number;
-  /** Target hotspot if any */
   hotspotId?: string;
 }
 
-/** Total simulation loop duration in seconds */
 export const SCRIPT_DURATION = 20;
 
-/** Seeded pseudo-random for deterministic scripts */
 function seededRandom(seed: number): () => number {
   let s = seed;
   return () => {
@@ -27,288 +21,146 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-/** Pick a random hotspot weighted by priority and persona preference */
 function pickHotspot(
   hotspots: Hotspot[],
-  persona: PersonaConfig,
   rand: () => number,
-  visited: Set<string>
+  persona: PersonaConfig
 ): Hotspot {
-  const { pathStyle } = persona.cursorParams;
-
-  // Weight adjustment per persona path style
-  const weighted = hotspots.map((h) => {
-    let weight = h.priority;
-
-    // Aggressive users prefer CTAs and nav
-    if (pathStyle === 'direct') {
-      if (h.type === 'cta') weight *= 3;
-      if (h.type === 'text') weight *= 0.3;
-    }
-    // Cautious explorers read text, hover on everything
-    if (pathStyle === 'curved') {
-      if (h.type === 'text') weight *= 2.5;
-      if (h.type === 'image') weight *= 2;
-      if (h.type === 'cta') weight *= 0.8;
-    }
-    // Scanners mostly scroll, rarely click
-    if (pathStyle === 'vertical-sweep') {
-      if (h.type === 'text') weight *= 2;
-      if (h.type === 'image') weight *= 1.5;
-      if (h.type === 'cta') weight *= 0.3;
-    }
-    // Methodical visits everything in order — prefer unvisited
-    if (pathStyle === 'sequential') {
-      if (!visited.has(h.id)) weight *= 3;
-      else weight *= 0.2;
-    }
-    // Frustrated rager clicks everywhere including dead zones
-    if (pathStyle === 'erratic') {
-      weight = 1 + rand() * 3;
-    }
-
-    return { hotspot: h, weight };
+  const weights = hotspots.map((h) => {
+    let w = h.priority;
+    if (h.type === 'cta' && persona.cursorParams.clickFrequency > 1) w *= 2;
+    if (h.type === 'text' && persona.cursorParams.hoverDuration > 1000) w *= 2;
+    if (h.type === 'dead-zone' && persona.cursorParams.rageClickChance > 0.3) w *= 3;
+    if (h.type === 'nav' && persona.cursorParams.pathStyle === 'sequential') w *= 1.5;
+    return w;
   });
-
-  const totalWeight = weighted.reduce((sum, w) => sum + w.weight, 0);
-  let r = rand() * totalWeight;
-  for (const w of weighted) {
-    r -= w.weight;
-    if (r <= 0) return w.hotspot;
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = rand() * total;
+  for (let i = 0; i < hotspots.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return hotspots[i];
   }
-  return weighted[weighted.length - 1].hotspot;
+  return hotspots[0];
 }
 
-/** Add slight curve offset for non-direct paths */
-function curveOffset(rand: () => number, intensity: number): { dx: number; dy: number } {
-  return {
-    dx: (rand() - 0.5) * intensity,
-    dy: (rand() - 0.5) * intensity,
-  };
+function interpolatePath(
+  ax: number, ay: number,
+  bx: number, by: number,
+  style: string,
+  rand: () => number
+): { cx: number; cy: number } {
+  switch (style) {
+    case 'curved': {
+      const mx = (ax + bx) / 2 + (rand() - 0.5) * 0.3;
+      const my = (ay + by) / 2 + (rand() - 0.5) * 0.3;
+      return { cx: mx, cy: my };
+    }
+    case 'erratic': {
+      return { cx: rand(), cy: rand() };
+    }
+    default:
+      return { cx: (ax + bx) / 2, cy: (ay + by) / 2 };
+  }
 }
 
-/** Generate a dead-click position (not on any hotspot) */
-function deadClickPosition(rand: () => number): { x: number; y: number } {
-  // Target empty areas
-  const zones = [
-    { x: 0.05, y: 0.45 },  // left of hero image
-    { x: 0.95, y: 0.45 },  // right of hero image
-    { x: 0.5, y: 0.55 },   // between hero and cards
-    { x: 0.15, y: 0.82 },  // left of bottom cta
-    { x: 0.85, y: 0.82 },  // right of bottom cta
-  ];
-  const zone = zones[Math.floor(rand() * zones.length)];
-  return {
-    x: zone.x + (rand() - 0.5) * 0.08,
-    y: zone.y + (rand() - 0.5) * 0.06,
-  };
-}
-
-/**
- * Generate a complete behavior script for a persona.
- * Returns an array of BehaviorSteps that loop over SCRIPT_DURATION seconds.
- */
 export function generateScript(persona: PersonaConfig): BehaviorStep[] {
+  const rand = seededRandom(persona.id * 1337 + 42);
   const steps: BehaviorStep[] = [];
-  const rand = seededRandom(persona.id * 7919 + 42);
-  const { moveSpeed, clickFrequency, hoverDuration, hesitationChance, rageClickChance, pathStyle } =
-    persona.cursorParams;
+  const { cursorParams } = persona;
+  const hotspots = DEFAULT_HOTSPOTS;
 
-  const hotspots = [...DEFAULT_HOTSPOTS];
-  const visited = new Set<string>();
+  let totalDuration = 0;
+  let lastX = 0.5;
+  let lastY = 0.1;
 
-  // For sequential: sort hotspots top-to-bottom, left-to-right
-  if (pathStyle === 'sequential') {
-    hotspots.sort((a, b) => a.y - b.y || a.x - b.x);
-  }
+  const addStep = (s: BehaviorStep) => {
+    steps.push(s);
+    totalDuration += s.duration;
+    lastX = s.x;
+    lastY = s.y;
+  };
 
-  let elapsed = 0;
-  let currentX = 0.5;
-  let currentY = 0.1; // Start near top
+  // Initial idle
+  addStep({ x: 0.5, y: 0.05, action: 'idle', duration: 0.3 });
 
-  // For vertical-sweep: start at top and sweep down
-  if (pathStyle === 'vertical-sweep') {
-    currentX = 0.3 + rand() * 0.4;
-    currentY = 0.02;
-  }
+  while (totalDuration < SCRIPT_DURATION) {
+    const hotspot = pickHotspot(hotspots, rand, persona);
+    const targetX = hotspot.x + rand() * hotspot.w;
+    const targetY = hotspot.y + rand() * hotspot.h;
 
-  let hotspotIndex = 0; // For sequential traversal
+    // Movement
+    const dist = Math.hypot(targetX - lastX, targetY - lastY);
+    const moveDur = Math.max(0.2, dist / Math.max(0.1, cursorParams.moveSpeed));
 
-  while (elapsed < SCRIPT_DURATION) {
-    // Pick next target
-    let targetHotspot: Hotspot;
-    if (pathStyle === 'sequential') {
-      targetHotspot = hotspots[hotspotIndex % hotspots.length];
-      hotspotIndex++;
+    if (cursorParams.pathStyle === 'curved' || cursorParams.pathStyle === 'erratic') {
+      const mid = interpolatePath(lastX, lastY, targetX, targetY, cursorParams.pathStyle, rand);
+      addStep({ x: mid.cx, y: mid.cy, action: 'move', duration: moveDur * 0.5 });
+      addStep({ x: targetX, y: targetY, action: 'move', duration: moveDur * 0.5, hotspotId: hotspot.id });
+    } else if (cursorParams.pathStyle === 'vertical-sweep') {
+      addStep({ x: lastX, y: targetY, action: 'move', duration: moveDur * 0.4 });
+      addStep({ x: targetX, y: targetY, action: 'move', duration: moveDur * 0.6, hotspotId: hotspot.id });
+      // Skimmers scroll a lot
+      if (rand() < 0.6) {
+        addStep({ x: targetX, y: Math.min(1, targetY + 0.15), action: 'scroll', duration: 0.3, hotspotId: hotspot.id });
+      }
     } else {
-      targetHotspot = pickHotspot(hotspots, persona, rand, visited);
-    }
-    visited.add(targetHotspot.id);
-
-    const targetX = targetHotspot.x + targetHotspot.w / 2 + (rand() - 0.5) * targetHotspot.w * 0.6;
-    const targetY = targetHotspot.y + targetHotspot.h / 2 + (rand() - 0.5) * targetHotspot.h * 0.6;
-
-    // For vertical-sweep: override to sweep down the page
-    let finalX = targetX;
-    let finalY = targetY;
-    if (pathStyle === 'vertical-sweep') {
-      finalX = currentX + (rand() - 0.5) * 0.15;
-      finalY = Math.min(0.98, currentY + 0.04 + rand() * 0.08);
+      addStep({ x: targetX, y: targetY, action: 'move', duration: moveDur, hotspotId: hotspot.id });
     }
 
-    // Calculate travel distance & duration
-    const dx = finalX - currentX;
-    const dy = finalY - currentY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const travelTime = Math.max(0.1, dist / (moveSpeed * 0.5));
-
-    // Optional hesitation before moving
-    if (rand() < hesitationChance && elapsed > 0) {
-      const hesitateTime = 0.3 + rand() * 1.5;
-      steps.push({
-        x: currentX,
-        y: currentY,
-        action: 'idle',
-        duration: hesitateTime,
-      });
-      elapsed += hesitateTime;
+    // Hesitation
+    if (rand() < cursorParams.hesitationChance) {
+      addStep({ x: targetX, y: targetY, action: 'idle', duration: 0.3 + rand() * 0.8 });
     }
 
-    // Add intermediate curve points for curved paths
-    if (pathStyle === 'curved' && dist > 0.1) {
-      const mid = curveOffset(rand, 0.15);
-      const midX = (currentX + finalX) / 2 + mid.dx;
-      const midY = (currentY + finalY) / 2 + mid.dy;
-      steps.push({
-        x: Math.max(0.01, Math.min(0.99, midX)),
-        y: Math.max(0.01, Math.min(0.99, midY)),
-        action: 'move',
-        duration: travelTime / 2,
-      });
-      elapsed += travelTime / 2;
+    // Hover
+    if (hotspot.type !== 'dead-zone' && rand() < 0.6) {
+      const hoverDur = cursorParams.hoverDuration / 1000;
+      addStep({ x: targetX, y: targetY, action: 'hover', duration: hoverDur, hotspotId: hotspot.id });
     }
 
-    // Add erratic jitter points for erratic paths
-    if (pathStyle === 'erratic' && dist > 0.05) {
-      const jitterCount = 1 + Math.floor(rand() * 3);
-      for (let j = 0; j < jitterCount; j++) {
-        const t = (j + 1) / (jitterCount + 1);
-        const jx = currentX + dx * t + (rand() - 0.5) * 0.12;
-        const jy = currentY + dy * t + (rand() - 0.5) * 0.1;
-        steps.push({
-          x: Math.max(0.01, Math.min(0.99, jx)),
-          y: Math.max(0.01, Math.min(0.99, jy)),
-          action: 'move',
-          duration: travelTime / (jitterCount + 1) * 0.6,
-        });
-        elapsed += travelTime / (jitterCount + 1) * 0.6;
-      }
-    }
-
-    // Move to target
-    steps.push({
-      x: Math.max(0.01, Math.min(0.99, finalX)),
-      y: Math.max(0.01, Math.min(0.99, finalY)),
-      action: 'move',
-      duration: pathStyle === 'curved' && dist > 0.1 ? travelTime / 2 : travelTime,
-      hotspotId: targetHotspot.id,
-    });
-    elapsed += pathStyle === 'curved' && dist > 0.1 ? travelTime / 2 : travelTime;
-
-    currentX = finalX;
-    currentY = finalY;
-
-    // Decide action at destination
-    if (pathStyle === 'vertical-sweep') {
-      // Scanners: frequent scroll, occasional hover, rare click
-      const scrollTime = 0.3 + rand() * 0.5;
-      steps.push({ x: currentX, y: currentY, action: 'scroll', duration: scrollTime });
-      elapsed += scrollTime;
-      if (rand() < 0.15) {
-        const hoverTime = hoverDuration / 1000;
-        steps.push({ x: currentX, y: currentY, action: 'hover', duration: hoverTime, hotspotId: targetHotspot.id });
-        elapsed += hoverTime;
-      }
-      if (rand() < clickFrequency * 0.1) {
-        steps.push({ x: currentX, y: currentY, action: 'click', duration: 0.1, hotspotId: targetHotspot.id });
-        elapsed += 0.1;
-      }
-    } else if (rand() < rageClickChance) {
-      // Rage click burst: 3-5 rapid clicks
-      const burstCount = 3 + Math.floor(rand() * 3);
+    // Click or rage-click
+    if (rand() < cursorParams.rageClickChance) {
+      const burstCount = 2 + Math.floor(rand() * 4);
       for (let c = 0; c < burstCount; c++) {
-        const offset = (rand() - 0.5) * 0.02;
-        steps.push({
-          x: Math.max(0.01, Math.min(0.99, currentX + offset)),
-          y: Math.max(0.01, Math.min(0.99, currentY + (rand() - 0.5) * 0.02)),
+        addStep({
+          x: targetX + (rand() - 0.5) * 0.02,
+          y: targetY + (rand() - 0.5) * 0.02,
           action: 'rage-click',
-          duration: 0.05 + rand() * 0.08,
-          hotspotId: targetHotspot.id,
+          duration: 0.06 + rand() * 0.06,
+          hotspotId: hotspot.id,
         });
-        elapsed += 0.05 + rand() * 0.08;
       }
-      // Maybe also a dead click nearby
-      if (rand() < 0.5) {
-        const dead = deadClickPosition(rand);
-        steps.push({ x: dead.x, y: dead.y, action: 'move', duration: 0.2 });
-        steps.push({ x: dead.x, y: dead.y, action: 'click', duration: 0.1 });
-        elapsed += 0.3;
+    } else if (hotspot.type === 'cta' || hotspot.type === 'link' || hotspot.type === 'nav') {
+      if (rand() < cursorParams.clickFrequency / 3) {
+        addStep({ x: targetX, y: targetY, action: 'click', duration: 0.1, hotspotId: hotspot.id });
       }
-    } else {
-      // Normal interaction: hover then maybe click
-      if (targetHotspot.type === 'text' || targetHotspot.type === 'image' || rand() < hesitationChance) {
-        const hoverTime = hoverDuration / 1000 * (0.5 + rand());
-        steps.push({ x: currentX, y: currentY, action: 'hover', duration: hoverTime, hotspotId: targetHotspot.id });
-        elapsed += hoverTime;
-      }
+    }
 
-      // Click probability based on element type and persona
-      let clickChance = clickFrequency * 0.3;
-      if (targetHotspot.type === 'cta') clickChance = Math.min(1, clickFrequency * 0.6);
-      if (targetHotspot.type === 'nav' || targetHotspot.type === 'link') clickChance = Math.min(1, clickFrequency * 0.4);
-      if (targetHotspot.type === 'text') clickChance *= 0.1;
-      if (targetHotspot.type === 'image') clickChance *= 0.15;
-
-      if (rand() < clickChance) {
-        steps.push({ x: currentX, y: currentY, action: 'click', duration: 0.1, hotspotId: targetHotspot.id });
-        elapsed += 0.1;
-      }
-
-      // Occasional scroll between interactions
-      const scrollChance = pathStyle === 'curved' ? 0.3 : pathStyle === 'sequential' ? 0.4 : pathStyle === 'erratic' ? 0.25 : 0.15;
-      if (rand() < scrollChance) {
-        const scrollDur = pathStyle === 'curved' ? 0.8 + rand() * 1.2 : pathStyle === 'sequential' ? 0.4 + rand() * 0.4 : 0.2 + rand() * 0.4;
-        steps.push({ x: currentX, y: currentY, action: 'scroll', duration: scrollDur });
-        elapsed += scrollDur;
-      }
+    // Scroll
+    if (rand() < 0.25) {
+      const scrollY = Math.min(1, targetY + (rand() * 0.1 + 0.05));
+      addStep({ x: targetX, y: scrollY, action: 'scroll', duration: 0.2 + rand() * 0.3, hotspotId: hotspot.id });
     }
   }
 
   return steps;
 }
 
-/**
- * Given a time T (in seconds), find the interpolated position and current action.
- * Scripts loop after SCRIPT_DURATION.
- */
 export function sampleScript(
   steps: BehaviorStep[],
   time: number
 ): { x: number; y: number; action: ActionType; progress: number; hotspotId?: string } {
   const loopedTime = time % SCRIPT_DURATION;
-
   let elapsed = 0;
+
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
     const stepEnd = elapsed + step.duration;
 
     if (loopedTime < stepEnd || i === steps.length - 1) {
-      // We're in this step — interpolate between previous position and this one
       const prevStep = i > 0 ? steps[i - 1] : { x: 0.5, y: 0.1 };
       const t = step.duration > 0 ? Math.min(1, (loopedTime - elapsed) / step.duration) : 1;
-
-      // Smooth interpolation
-      const smooth = t * t * (3 - 2 * t); // smoothstep
+      const smooth = t * t * (3 - 2 * t);
 
       if (step.action === 'move') {
         return {
@@ -320,7 +172,6 @@ export function sampleScript(
         };
       }
 
-      // For non-move actions, stay at the step position
       return {
         x: step.x,
         y: step.y,
@@ -333,7 +184,6 @@ export function sampleScript(
     elapsed = stepEnd;
   }
 
-  // Fallback
   const last = steps[steps.length - 1];
   return { x: last?.x ?? 0.5, y: last?.y ?? 0.5, action: 'idle', progress: 1 };
 }

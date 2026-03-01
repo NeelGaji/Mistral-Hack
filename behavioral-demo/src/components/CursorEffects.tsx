@@ -2,115 +2,79 @@ import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-/** Expanding ring on click */
-export function ClickRipple({
-  position,
-  color,
-  startTime,
-}: {
+/* ── Ripple ── */
+export interface RippleData {
   position: [number, number, number];
-  color: string;
   startTime: number;
-}) {
+}
+
+export function ClickRipple({ position, startTime }: RippleData) {
   const ref = useRef<THREE.Mesh>(null!);
-  const matRef = useRef<THREE.MeshBasicMaterial>(null!);
-  const duration = 0.6;
 
   useFrame((state) => {
-    if (!ref.current || !matRef.current) return;
+    if (!ref.current) return;
     const age = state.clock.elapsedTime - startTime;
-    if (age > duration) {
-      ref.current.visible = false;
-      return;
-    }
-    const t = age / duration;
-    const scale = 0.05 + t * 0.4;
+    const scale = 1 + age * 4;
+    const opacity = Math.max(0, 1 - age * 2.5);
     ref.current.scale.set(scale, scale, 1);
-    matRef.current.opacity = (1 - t) * 0.8;
-    ref.current.visible = true;
+    (ref.current.material as THREE.MeshBasicMaterial).opacity = opacity;
+    if (opacity <= 0) ref.current.visible = false;
   });
 
   return (
-    <mesh ref={ref} position={position} visible={false}>
-      <ringGeometry args={[0.8, 1.0, 32]} />
-      <meshBasicMaterial
-        ref={matRef}
-        color={color}
-        transparent
-        opacity={0.8}
-        side={THREE.DoubleSide}
-        depthWrite={false}
-      />
+    <mesh ref={ref} position={position}>
+      <ringGeometry args={[0.08, 0.12, 32]} />
+      <meshBasicMaterial color="#ffffff" transparent opacity={1} side={THREE.DoubleSide} depthWrite={false} />
     </mesh>
   );
 }
 
-/** Pulsing circle during hover */
+/* ── Hover Halo ── */
 export function HoverHalo({
-  position,
   color,
-  active,
-  intensity,
+  visible,
+  position,
 }: {
-  position: [number, number, number];
   color: string;
-  active: boolean;
-  intensity: number;
+  visible: boolean;
+  position: [number, number, number];
 }) {
   const ref = useRef<THREE.Mesh>(null!);
-  const matRef = useRef<THREE.MeshBasicMaterial>(null!);
 
-  useFrame((state) => {
-    if (!ref.current || !matRef.current) return;
-    ref.current.visible = active;
-    if (!active) return;
-    const pulse = 0.15 + Math.sin(state.clock.elapsedTime * 3) * 0.03;
-    const scale = pulse * intensity;
-    ref.current.scale.set(scale, scale, 1);
-    matRef.current.opacity = 0.15 + Math.sin(state.clock.elapsedTime * 2) * 0.08;
+  useFrame((_, delta) => {
+    if (!ref.current) return;
+    const target = visible ? 0.35 : 0;
+    const mat = ref.current.material as THREE.MeshBasicMaterial;
+    mat.opacity += (target - mat.opacity) * Math.min(1, delta * 8);
+    ref.current.rotation.z += delta * 0.5;
   });
 
   return (
-    <mesh ref={ref} position={position} visible={false}>
-      <circleGeometry args={[1, 32]} />
-      <meshBasicMaterial
-        ref={matRef}
-        color={color}
-        transparent
-        opacity={0.2}
-        side={THREE.DoubleSide}
-        depthWrite={false}
-      />
+    <mesh ref={ref} position={position}>
+      <ringGeometry args={[0.15, 0.22, 48]} />
+      <meshBasicMaterial color={color} transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
     </mesh>
   );
 }
 
-/** Rage-click particle burst */
-export function RageParticles({
-  position,
-  color,
-  startTime,
-}: {
+/* ── Rage Burst ── */
+export interface RageBurstData {
   position: [number, number, number];
-  color: string;
   startTime: number;
-}) {
-  const pointsRef = useRef<THREE.Points>(null!);
-  const count = 20;
-  const duration = 0.8;
+}
+
+export function RageBurst({ position, startTime }: RageBurstData) {
+  const ref = useRef<THREE.Points>(null!);
+  const COUNT = 12;
 
   const { geometry, velocities } = useMemo(() => {
-    const pos = new Float32Array(count * 3);
-    const vel = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
+    const pos = new Float32Array(COUNT * 3);
+    const vel: THREE.Vector3[] = [];
+    for (let i = 0; i < COUNT; i++) {
       pos[i * 3] = 0;
       pos[i * 3 + 1] = 0;
       pos[i * 3 + 2] = 0;
-      const angle = (Math.random() * Math.PI * 2);
-      const speed = 0.5 + Math.random() * 2;
-      vel[i * 3] = Math.cos(angle) * speed;
-      vel[i * 3 + 1] = Math.sin(angle) * speed;
-      vel[i * 3 + 2] = (Math.random() - 0.5) * 0.5;
+      vel.push(new THREE.Vector3((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, Math.random() * 0.5));
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -118,92 +82,73 @@ export function RageParticles({
   }, []);
 
   useFrame((state) => {
-    if (!pointsRef.current) return;
+    if (!ref.current) return;
     const age = state.clock.elapsedTime - startTime;
-    if (age > duration || age < 0) {
-      pointsRef.current.visible = false;
-      return;
-    }
-    pointsRef.current.visible = true;
-
+    if (age > 1) { ref.current.visible = false; return; }
     const posAttr = geometry.getAttribute('position') as THREE.BufferAttribute;
     const arr = posAttr.array as Float32Array;
-    const t = age / duration;
-
-    for (let i = 0; i < count; i++) {
-      arr[i * 3] = velocities[i * 3] * age;
-      arr[i * 3 + 1] = velocities[i * 3 + 1] * age - 0.5 * age * age;
-      arr[i * 3 + 2] = velocities[i * 3 + 2] * age;
+    for (let i = 0; i < COUNT; i++) {
+      arr[i * 3] = velocities[i].x * age;
+      arr[i * 3 + 1] = velocities[i].y * age;
+      arr[i * 3 + 2] = velocities[i].z * age;
     }
     posAttr.needsUpdate = true;
-
-    const mat = pointsRef.current.material as THREE.PointsMaterial;
-    mat.opacity = (1 - t) * 0.9;
+    (ref.current.material as THREE.PointsMaterial).opacity = Math.max(0, 1 - age);
   });
 
   return (
-    <points ref={pointsRef} position={position} geometry={geometry} visible={false}>
-      <pointsMaterial
-        color={color}
-        size={0.06}
-        transparent
-        opacity={0.9}
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-        sizeAttenuation
-      />
+    <points ref={ref} position={position} geometry={geometry}>
+      <pointsMaterial color="#ff2200" size={0.04} transparent opacity={1} depthWrite={false} blending={THREE.AdditiveBlending} />
     </points>
   );
 }
 
-/** Fading trail of recent cursor positions */
+/* ── Cursor Trail ── */
+const TRAIL_MAX = 60;
+
 export function CursorTrail({
-  positions,
   color,
-  opacity,
+  intensity,
 }: {
-  positions: [number, number, number][];
   color: string;
-  opacity: number;
+  intensity: number;
 }) {
   const lineRef = useRef<THREE.Line>(null!);
 
-  const lineObj = useMemo(() => {
+  const { line } = useMemo(() => {
     const geo = new THREE.BufferGeometry();
-    const maxPoints = 60;
-    const posArr = new Float32Array(maxPoints * 3);
-    geo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+    const positions = new Float32Array(TRAIL_MAX * 3);
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geo.setDrawRange(0, 0);
     const mat = new THREE.LineBasicMaterial({
       color,
       transparent: true,
-      opacity,
+      opacity: intensity * 0.5,
       depthWrite: false,
+      blending: THREE.AdditiveBlending,
     });
-    return new THREE.Line(geo, mat);
-  }, []);
+    const l = new THREE.Line(geo, mat);
+    return { geometry: geo, line: l };
+  }, [color, intensity]);
 
-  useFrame(() => {
-    if (!lineRef.current) return;
-    const geo = lineRef.current.geometry;
-    const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
-    const arr = posAttr.array as Float32Array;
-    const count = Math.min(positions.length, 60);
+  return <primitive ref={lineRef} object={line} />;
+}
 
-    for (let i = 0; i < count; i++) {
-      const p = positions[positions.length - count + i];
-      arr[i * 3] = p[0];
-      arr[i * 3 + 1] = p[1];
-      arr[i * 3 + 2] = p[2];
-    }
-    posAttr.needsUpdate = true;
-    geo.setDrawRange(0, count);
-
-    const mat = lineRef.current.material as THREE.LineBasicMaterial;
-    mat.opacity = opacity;
-  });
-
-  return (
-    <primitive ref={lineRef} object={lineObj} />
-  );
+export function updateTrail(
+  trailPoints: THREE.Vector3[],
+  lineRef: THREE.Line | null,
+  newPos: THREE.Vector3
+) {
+  trailPoints.push(newPos.clone());
+  if (trailPoints.length > TRAIL_MAX) trailPoints.shift();
+  if (!lineRef) return;
+  const posAttr = lineRef.geometry.getAttribute('position') as THREE.BufferAttribute;
+  const arr = posAttr.array as Float32Array;
+  for (let i = 0; i < trailPoints.length; i++) {
+    arr[i * 3] = trailPoints[i].x;
+    arr[i * 3 + 1] = trailPoints[i].y;
+    arr[i * 3 + 2] = trailPoints[i].z;
+  }
+  posAttr.needsUpdate = true;
+  lineRef.geometry.setDrawRange(0, trailPoints.length);
 }

@@ -288,40 +288,21 @@
   white-space: nowrap;
 }
 
-.api-config-panel {
-  position: fixed;
-  top: 85px;
-  right: 12px;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+.url-live-badge {
+  font-size: 10px;
+  color: #22cc66;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.api-toggle-btn {
-  display: flex;
-  align-items: center;
-  font-size: 10px !important;
-  padding: 4px 10px !important;
-  opacity: 0.8;
+.live-btn {
+  border-color: rgba(34, 204, 102, 0.4) !important;
 }
 
-.api-toggle-btn:hover {
-  opacity: 1;
-}
-
-.api-config-body {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  background: rgba(10, 10, 30, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  padding: 8px 10px;
-  flex-wrap: wrap;
-}
-
-.api-config-body .url-input {
-  min-width: 240px;
+.live-btn:hover {
+  border-color: rgba(34, 204, 102, 0.8) !important;
+  background: rgba(34, 204, 102, 0.1) !important;
 }

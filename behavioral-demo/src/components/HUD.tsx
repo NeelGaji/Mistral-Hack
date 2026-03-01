@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
-import { PersonaConfig } from '../data/personas';
+import { PERSONAS, PersonaConfig } from '../data/personas';
 import { useStore } from '../store/useStore';
+import { clearHeatmap } from './HeatmapOverlay';
 import * as THREE from 'three';
 import './HUD.css';
 
@@ -13,7 +14,8 @@ export default function HUD() {
   const showAllCursors = useStore((s) => s.showAllCursors);
   const simulationRunning = useStore((s) => s.simulationRunning);
   const simulationProgress = useStore((s) => s.simulationProgress);
-  const personas = useStore((s) => s.personas);
+  const heatmapVisible = useStore((s) => s.heatmapVisible);
+  const toggleHeatmap = useStore((s) => s.toggleHeatmap);
 
   const setMode = useStore((s) => s.setMode);
   const selectPersona = useStore((s) => s.selectPersona);
@@ -99,6 +101,16 @@ export default function HUD() {
               <button className="hud-btn" onClick={toggleSimulation}>
                 {simulationRunning ? '⏸ PAUSE' : '▶ PLAY'}
               </button>
+              <span className="hud-divider">|</span>
+              <button
+                className={`hud-btn ${heatmapVisible ? 'active' : ''}`}
+                onClick={toggleHeatmap}
+              >
+                🔥 HEATMAP
+              </button>
+              <button className="hud-btn" onClick={() => clearHeatmap()}>
+                🗑 CLEAR MAP
+              </button>
             </>
           )}
 
@@ -128,12 +140,9 @@ export default function HUD() {
       {/* URL input for simulation mode */}
       {isSimView && <UrlInput />}
 
-      {/* API Config panel */}
-      {isSimView && <ApiConfigPanel />}
-
       {/* Persona selector cards */}
       <div className="hud-personas">
-        {personas.map((p) => (
+        {PERSONAS.map((p) => (
           <PersonaCard
             key={p.id}
             persona={p}
@@ -152,9 +161,8 @@ export default function HUD() {
 
       {/* Active persona detail */}
       {((!isSimView && mode === 'solo' && activePersona !== null) ||
-        (isSimView && !showAllCursors && activePersona !== null)) &&
-        personas[activePersona] && (
-        <PersonaDetail persona={personas[activePersona]} />
+        (isSimView && !showAllCursors && activePersona !== null)) && (
+        <PersonaDetail persona={PERSONAS[activePersona]} />
       )}
     </div>
   );
@@ -166,9 +174,19 @@ function UrlInput() {
   const setIsCapturing = useStore((s) => s.setIsCapturing);
   const setWebsiteTexture = useStore((s) => s.setWebsiteTexture);
   const setWebsiteUrl = useStore((s) => s.setWebsiteUrl);
+  const setLiveUrl = useStore((s) => s.setLiveUrl);
+  const liveUrl = useStore((s) => s.liveUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [error, setError] = useState('');
+
+  const handleLive = () => {
+    if (!url.trim()) return;
+    setError('');
+    setWebsiteTexture(null);
+    setLiveUrl(url);
+    setWebsiteUrl(url);
+  };
 
   const loadTextureFromUrl = (imageUrl: string): Promise<THREE.Texture> => {
     return new Promise((resolve, reject) => {
@@ -256,6 +274,7 @@ function UrlInput() {
   const handleReset = () => {
     setWebsiteTexture(null);
     setWebsiteUrl('');
+    setLiveUrl('');
     setUrl('');
     setError('');
   };
@@ -270,6 +289,9 @@ function UrlInput() {
         onChange={(e) => { setUrl(e.target.value); setError(''); }}
         onKeyDown={(e) => e.key === 'Enter' && handleCapture()}
       />
+      <button className="hud-btn live-btn" onClick={handleLive}>
+        🌐 LIVE
+      </button>
       <button className="hud-btn capture-btn" onClick={handleCapture} disabled={isCapturing}>
         {isCapturing ? '⏳ CAPTURING...' : '📷 CAPTURE'}
       </button>
@@ -287,48 +309,7 @@ function UrlInput() {
         onChange={handleFileUpload}
       />
       {error && <span className="url-error">{error}</span>}
-    </div>
-  );
-}
-
-function ApiConfigPanel() {
-  const [expanded, setExpanded] = useState(false);
-  const apiEndpoint = useStore((s) => s.apiEndpoint);
-  const apiStatus = useStore((s) => s.apiStatus);
-  const apiError = useStore((s) => s.apiError);
-  const setApiEndpoint = useStore((s) => s.setApiEndpoint);
-  const loadPersonas = useStore((s) => s.loadPersonas);
-  const resetPersonas = useStore((s) => s.resetPersonas);
-
-  const statusColor = apiStatus === 'connected' ? '#22cc66' : apiStatus === 'error' ? '#ff4466' : apiStatus === 'loading' ? '#ffcc00' : '#666';
-  const statusText = apiStatus === 'connected' ? 'CONNECTED' : apiStatus === 'error' ? 'ERROR' : apiStatus === 'loading' ? 'LOADING...' : 'IDLE';
-
-  return (
-    <div className="api-config-panel">
-      <button className="hud-btn api-toggle-btn" onClick={() => setExpanded(!expanded)}>
-        <span style={{ color: statusColor, marginRight: 6 }}>●</span>
-        API {statusText}
-        <span style={{ marginLeft: 6, fontSize: 10 }}>{expanded ? '▲' : '▼'}</span>
-      </button>
-      {expanded && (
-        <div className="api-config-body">
-          <input
-            type="text"
-            className="url-input"
-            placeholder="NVIDIA sandbox API endpoint..."
-            value={apiEndpoint}
-            onChange={(e) => setApiEndpoint(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && loadPersonas()}
-          />
-          <button className="hud-btn capture-btn" onClick={loadPersonas} disabled={apiStatus === 'loading'}>
-            {apiStatus === 'loading' ? '⏳' : '🔄'} FETCH
-          </button>
-          <button className="hud-btn" onClick={resetPersonas}>
-            ↺ DEFAULT
-          </button>
-          {apiError && <span className="url-error">{apiError}</span>}
-        </div>
-      )}
+      {liveUrl && <span className="url-live-badge">LIVE: {liveUrl}</span>}
     </div>
   );
 }

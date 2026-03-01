@@ -1,7 +1,5 @@
 import { create } from 'zustand';
 import * as THREE from 'three';
-import { PersonaConfig, PERSONAS as DEFAULT_PERSONAS } from '../data/personas';
-import { fetchPersonas } from '../api/personaAdapter';
 
 interface AppState {
   /** 'race' = all 5 side-by-side, 'solo' = one at a time */
@@ -30,14 +28,10 @@ interface AppState {
   /** Whether URL capture is in progress */
   isCapturing: boolean;
 
-  /** Dynamic personas — defaults to hardcoded, can be replaced by API data */
-  personas: PersonaConfig[];
-  /** API endpoint URL for fetching personas */
-  apiEndpoint: string;
-  /** API connection status */
-  apiStatus: 'idle' | 'loading' | 'connected' | 'error';
-  /** API error message if any */
-  apiError: string;
+  /** Live URL for iframe-based website surface */
+  liveUrl: string;
+  /** Whether the heatmap overlay is visible */
+  heatmapVisible: boolean;
 
   // Actions
   setMode: (mode: 'race' | 'solo') => void;
@@ -53,13 +47,12 @@ interface AppState {
   setWebsiteTexture: (texture: THREE.Texture | null) => void;
   setWebsiteUrl: (url: string) => void;
   setIsCapturing: (val: boolean) => void;
-  setPersonas: (personas: PersonaConfig[]) => void;
-  setApiEndpoint: (url: string) => void;
-  loadPersonas: () => Promise<void>;
-  resetPersonas: () => void;
+  setLiveUrl: (url: string) => void;
+  setHeatmapVisible: (val: boolean) => void;
+  toggleHeatmap: () => void;
 }
 
-export const useStore = create<AppState>()((set, get) => ({
+export const useStore = create<AppState>()((set) => ({
   mode: 'race',
   activePersona: null,
   isAnimating: true,
@@ -68,16 +61,13 @@ export const useStore = create<AppState>()((set, get) => ({
 
   viewMode: 'simulation',
   showAllCursors: true,
-  simulationRunning: true,
+  simulationRunning: false,
   simulationProgress: 0,
   websiteTexture: null,
-  websiteUrl: '',
+  websiteUrl: 'https://fun-city-xi.vercel.app/',
   isCapturing: false,
-
-  personas: DEFAULT_PERSONAS,
-  apiEndpoint: '',
-  apiStatus: 'idle',
-  apiError: '',
+  liveUrl: 'https://fun-city-xi.vercel.app/',
+  heatmapVisible: true,
 
   setMode: (mode) => set({ mode, activePersona: mode === 'race' ? null : 0 }),
   setActivePersona: (id) => set({ activePersona: id }),
@@ -92,18 +82,7 @@ export const useStore = create<AppState>()((set, get) => ({
   setWebsiteTexture: (texture) => set({ websiteTexture: texture }),
   setWebsiteUrl: (url) => set({ websiteUrl: url }),
   setIsCapturing: (val) => set({ isCapturing: val }),
-  setPersonas: (personas) => set({ personas }),
-  setApiEndpoint: (url) => set({ apiEndpoint: url }),
-  loadPersonas: async () => {
-    const endpoint = get().apiEndpoint;
-    if (!endpoint.trim()) return;
-    set({ apiStatus: 'loading', apiError: '' });
-    try {
-      const personas = await fetchPersonas(endpoint);
-      set({ personas, apiStatus: 'connected', apiError: '', activePersona: null });
-    } catch (err: any) {
-      set({ apiStatus: 'error', apiError: err.message || 'Failed to fetch personas' });
-    }
-  },
-  resetPersonas: () => set({ personas: DEFAULT_PERSONAS, apiStatus: 'idle', apiError: '', apiEndpoint: '' }),
+  setLiveUrl: (url) => set({ liveUrl: url }),
+  setHeatmapVisible: (val) => set({ heatmapVisible: val }),
+  toggleHeatmap: () => set((s) => ({ heatmapVisible: !s.heatmapVisible })),
 }));

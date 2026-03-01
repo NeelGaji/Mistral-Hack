@@ -1,10 +1,11 @@
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { PERSONAS } from '../data/personas';
 import { useStore } from '../store/useStore';
 import Arena from './Arena';
 import ParticleSculpture from './ParticleSculpture';
 import WebsiteSurface from './WebsiteSurface';
 import AgentCursor from './AgentCursor';
+import HeatmapOverlay from './HeatmapOverlay';
 
 /** Positions for 5 sculptures in a row (race/split mode) */
 const RACE_POSITIONS: [number, number, number][] = [
@@ -42,24 +43,41 @@ export default function SceneContainer() {
 function SimulationView() {
   const showAllCursors = useStore((s) => s.showAllCursors);
   const activePersona = useStore((s) => s.activePersona);
-  const personas = useStore((s) => s.personas);
+  const simulationRunning = useStore((s) => s.simulationRunning);
+  const liveUrl = useStore((s) => s.liveUrl);
+  const heatmapVisible = useStore((s) => s.heatmapVisible);
+
+  const hasIframe = !!liveUrl;
 
   return (
     <Canvas
-      camera={{ position: [0, 1, 12], fov: 45 }}
+      camera={{ position: [0, 0, 10], fov: 45 }}
       dpr={[1, 2]}
-      style={{ width: '100vw', height: '100vh', background: '#050510' }}
+      gl={{ alpha: true }}
+      style={{
+        width: '100vw',
+        height: '100vh',
+        background: hasIframe ? 'transparent' : '#050510',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        zIndex: 2,
+        pointerEvents: simulationRunning ? 'auto' : 'none',
+      }}
     >
       <SimulationArena />
-      <WebsiteSurface position={SURFACE_POS} />
+      {!hasIframe && <WebsiteSurface position={SURFACE_POS} />}
+      {hasIframe && (
+        <IframeOverlaySurface heatmapVisible={heatmapVisible} />
+      )}
       {showAllCursors
-        ? personas.map((p) => (
-            <AgentCursor key={p.id} persona={p} surfacePosition={SURFACE_POS} />
+        ? PERSONAS.map((p) => (
+            <AgentCursor key={p.id} persona={p} surfacePosition={hasIframe ? IFRAME_SURFACE_POS : SURFACE_POS} />
           ))
-        : activePersona !== null && personas[activePersona] && (
+        : activePersona !== null && (
             <AgentCursor
-              persona={personas[activePersona]}
-              surfacePosition={SURFACE_POS}
+              persona={PERSONAS[activePersona]}
+              surfacePosition={hasIframe ? IFRAME_SURFACE_POS : SURFACE_POS}
               showLabel={true}
             />
           )}
@@ -70,7 +88,6 @@ function SimulationView() {
 function BothView() {
   const showAllCursors = useStore((s) => s.showAllCursors);
   const activePersona = useStore((s) => s.activePersona);
-  const personas = useStore((s) => s.personas);
 
   return (
     <Canvas
@@ -84,12 +101,12 @@ function BothView() {
       <group position={[0, 2, -2]}>
         <WebsiteSurface position={[0, 0, 0]} />
         {showAllCursors
-          ? personas.map((p) => (
+          ? PERSONAS.map((p) => (
               <AgentCursor key={p.id} persona={p} surfacePosition={[0, 0, 0]} />
             ))
-          : activePersona !== null && personas[activePersona] && (
+          : activePersona !== null && (
               <AgentCursor
-                persona={personas[activePersona]}
+                persona={PERSONAS[activePersona]}
                 surfacePosition={[0, 0, 0]}
                 showLabel={true}
               />
@@ -97,11 +114,11 @@ function BothView() {
       </group>
 
       {/* Small particle sculptures below */}
-      {personas.map((p, i) => (
+      {PERSONAS.map((p, i) => (
         <ParticleSculpture
           key={p.id}
           persona={p}
-          position={[(RACE_POSITIONS[i] || RACE_POSITIONS[0])[0], -3.5, 2]}
+          position={[RACE_POSITIONS[i][0], -3.5, 2]}
           scale={0.35}
         />
       ))}
@@ -110,7 +127,6 @@ function BothView() {
 }
 
 function RaceView() {
-  const personas = useStore((s) => s.personas);
   return (
     <Canvas
       camera={{ position: [0, 6, 18], fov: 55 }}
@@ -118,11 +134,11 @@ function RaceView() {
       style={{ width: '100vw', height: '100vh', background: '#050510' }}
     >
       <Arena />
-      {personas.map((p, i) => (
+      {PERSONAS.map((p, i) => (
         <ParticleSculpture
           key={p.id}
           persona={p}
-          position={RACE_POSITIONS[i] || [i * 4 - 8, 0, 0]}
+          position={RACE_POSITIONS[i]}
           scale={0.7}
         />
       ))}
@@ -131,8 +147,7 @@ function RaceView() {
 }
 
 function SoloView({ personaId }: { personaId: number }) {
-  const personas = useStore((s) => s.personas);
-  const persona = personas[personaId] || personas[0];
+  const persona = PERSONAS[personaId];
   return (
     <Canvas
       camera={{ position: [0, 3, 10], fov: 50 }}
@@ -145,22 +160,27 @@ function SoloView({ personaId }: { personaId: number }) {
   );
 }
 
-/** Minimal arena for simulation view — just lighting and controls */
+/** Surface position aligned with the iframe overlay (centered, orthographic-like) */
+const IFRAME_SURFACE_POS: [number, number, number] = [0, 0, 0];
+
+/** Transparent overlay surface for heatmap when iframe is active */
+function IframeOverlaySurface({ heatmapVisible }: { heatmapVisible: boolean }) {
+  const OVERLAY_WIDTH = 7.5;
+  const OVERLAY_HEIGHT = 8;
+  return (
+    <group position={IFRAME_SURFACE_POS}>
+      <HeatmapOverlay visible={heatmapVisible} width={OVERLAY_WIDTH} height={OVERLAY_HEIGHT} />
+    </group>
+  );
+}
+
+/** Minimal arena for simulation view — just lighting, no orbit controls (locked camera) */
 function SimulationArena() {
   return (
     <>
       <ambientLight intensity={0.3} />
       <directionalLight position={[5, 10, 5]} intensity={0.5} color="#8888ff" />
       <pointLight position={[0, 5, 5]} intensity={0.4} color="#ffffff" distance={25} />
-      <OrbitControls
-        makeDefault
-        enableDamping
-        dampingFactor={0.05}
-        minDistance={5}
-        maxDistance={30}
-        maxPolarAngle={Math.PI / 2}
-        enablePan
-      />
     </>
   );
 }
