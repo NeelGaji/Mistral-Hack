@@ -3,9 +3,12 @@ import { PERSONAS } from '../data/personas';
 import { useStore } from '../store/useStore';
 import Arena from './Arena';
 import ParticleSculpture from './ParticleSculpture';
-import WebsiteSurface from './WebsiteSurface';
+import WebsiteSurface, { IFRAME_WIDTH, IFRAME_HEIGHT } from './WebsiteSurface';
 import AgentCursor from './AgentCursor';
 import HeatmapOverlay from './HeatmapOverlay';
+
+const IFRAME_OVERLAY_W = IFRAME_WIDTH;
+const IFRAME_OVERLAY_H = IFRAME_HEIGHT;
 
 /** Positions for 5 sculptures in a row (race/split mode) */
 const RACE_POSITIONS: [number, number, number][] = [
@@ -72,13 +75,14 @@ function SimulationView() {
       )}
       {showAllCursors
         ? PERSONAS.map((p) => (
-            <AgentCursor key={p.id} persona={p} surfacePosition={hasIframe ? IFRAME_SURFACE_POS : SURFACE_POS} />
+            <AgentCursor key={p.id} persona={p} surfacePosition={hasIframe ? IFRAME_SURFACE_POS : SURFACE_POS} iframeMode={hasIframe} />
           ))
         : activePersona !== null && (
             <AgentCursor
               persona={PERSONAS[activePersona]}
               surfacePosition={hasIframe ? IFRAME_SURFACE_POS : SURFACE_POS}
               showLabel={true}
+              iframeMode={hasIframe}
             />
           )}
     </Canvas>
@@ -165,11 +169,9 @@ const IFRAME_SURFACE_POS: [number, number, number] = [0, 0, 0];
 
 /** Transparent overlay surface for heatmap when iframe is active */
 function IframeOverlaySurface({ heatmapVisible }: { heatmapVisible: boolean }) {
-  const OVERLAY_WIDTH = 7.5;
-  const OVERLAY_HEIGHT = 8;
   return (
     <group position={IFRAME_SURFACE_POS}>
-      <HeatmapOverlay visible={heatmapVisible} width={OVERLAY_WIDTH} height={OVERLAY_HEIGHT} />
+      <HeatmapOverlay visible={heatmapVisible} width={IFRAME_OVERLAY_W} height={IFRAME_OVERLAY_H} />
     </group>
   );
 }

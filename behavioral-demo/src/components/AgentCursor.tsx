@@ -20,10 +20,12 @@ export default function AgentCursor({
   persona,
   surfacePosition = [0, 0, 0],
   showLabel = true,
+  iframeMode = false,
 }: {
   persona: PersonaConfig;
   surfacePosition?: [number, number, number];
   showLabel?: boolean;
+  iframeMode?: boolean;
 }) {
   const simulationRunning = useStore((s) => s.simulationRunning);
   const speed = useStore((s) => s.speed);
@@ -54,7 +56,7 @@ export default function AgentCursor({
     frameCountRef.current++;
     timeRef.current += delta * speed;
     const sample = sampleScript(script, timeRef.current);
-    const worldPos = normalizedToWorld(sample.x, sample.y, surfacePosition);
+    const worldPos = normalizedToWorld(sample.x, sample.y, surfacePosition, iframeMode);
 
     // Update group position
     groupRef.current.position.set(worldPos[0], worldPos[1], worldPos[2]);

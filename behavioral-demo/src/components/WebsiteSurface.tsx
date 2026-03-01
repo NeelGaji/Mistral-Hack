@@ -8,6 +8,10 @@ import HeatmapOverlay from './HeatmapOverlay';
 export const SURFACE_WIDTH = 12;
 export const SURFACE_HEIGHT = 8;
 
+/** Iframe overlay dimensions — matched to the CSS 75vw x 80vh iframe at camera z=10, fov=45 */
+export const IFRAME_WIDTH = 6.2;
+export const IFRAME_HEIGHT = 6.6;
+
 /** Convert normalized 0-1 hotspot coords to 3D world position on the surface */
 export function hotspotToWorld(
   hotspot: Hotspot,
@@ -26,11 +30,14 @@ export function hotspotToWorld(
 export function normalizedToWorld(
   nx: number,
   ny: number,
-  surfacePos: [number, number, number] = [0, 0, 0]
+  surfacePos: [number, number, number] = [0, 0, 0],
+  iframeMode = false
 ): [number, number, number] {
+  const w = iframeMode ? IFRAME_WIDTH : SURFACE_WIDTH;
+  const h = iframeMode ? IFRAME_HEIGHT : SURFACE_HEIGHT;
   return [
-    surfacePos[0] + (nx - 0.5) * SURFACE_WIDTH,
-    surfacePos[1] + (0.5 - ny) * SURFACE_HEIGHT,
+    surfacePos[0] + (nx - 0.5) * w,
+    surfacePos[1] + (0.5 - ny) * h,
     surfacePos[2] + 0.01,
   ];
 }
