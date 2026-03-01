@@ -1,0 +1,327 @@
+/* ===== HUD Overlay ===== */
+
+.hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  color: #e0e0e0;
+}
+
+.hud * {
+  pointer-events: auto;
+}
+
+/* Top bar */
+.hud-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+}
+
+.hud-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.hud-logo {
+  color: #6666ff;
+  margin-right: 8px;
+  font-size: 22px;
+}
+
+.hud-subtitle {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 1px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.hud-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ccc;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.hud-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.hud-btn.active {
+  background: rgba(100, 100, 255, 0.25);
+  border-color: #6666ff;
+  color: #fff;
+}
+
+.hud-divider {
+  color: #444;
+  margin: 0 4px;
+}
+
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #888;
+}
+
+.speed-control input[type="range"] {
+  width: 80px;
+  accent-color: #6666ff;
+}
+
+/* Persona selector cards — bottom */
+.hud-personas {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+}
+
+.persona-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.25s;
+  backdrop-filter: blur(8px);
+}
+
+.persona-card:hover {
+  background: rgba(30, 30, 60, 0.8);
+  transform: translateY(-2px);
+}
+
+.persona-card.active {
+  border-width: 2px;
+  transform: translateY(-4px);
+  box-shadow: 0 4px 20px rgba(100, 100, 255, 0.2);
+}
+
+.persona-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.persona-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.persona-name {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #ddd;
+}
+
+.persona-cluster {
+  font-size: 9px;
+  color: #777;
+  letter-spacing: 0.5px;
+}
+
+/* Persona detail panel — solo mode, bottom-right */
+.persona-detail {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  width: 280px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left-width: 3px;
+  border-radius: 10px;
+  padding: 16px;
+  backdrop-filter: blur(12px);
+}
+
+.persona-detail h3 {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.persona-desc {
+  font-size: 11px;
+  color: #999;
+  margin: 0 0 14px 0;
+  line-height: 1.5;
+}
+
+.metrics-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metric-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.metric-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #888;
+  letter-spacing: 0.5px;
+}
+
+.metric-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.metric-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+
+/* View mode toggle group */
+.view-mode-group {
+  display: flex;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 5px;
+  padding: 2px;
+}
+
+.view-mode-group .hud-btn {
+  border-radius: 3px;
+  font-size: 10px;
+  padding: 5px 12px;
+}
+
+/* Simulation progress bar */
+.sim-progress-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  position: relative;
+}
+
+.sim-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4444cc, #6666ff, #8888ff);
+  border-radius: 0 2px 2px 0;
+  transition: width 0.1s linear;
+}
+
+/* URL input bar */
+.url-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 24px;
+  background: rgba(0, 0, 0, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.url-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 6px 12px;
+  color: #ddd;
+  font-size: 12px;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.url-input:focus {
+  border-color: #6666ff;
+}
+
+.url-input::placeholder {
+  color: #555;
+}
+
+.capture-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.url-error {
+  font-size: 10px;
+  color: #ff4466;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.api-config-panel {
+  position: fixed;
+  top: 85px;
+  right: 12px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.api-toggle-btn {
+  display: flex;
+  align-items: center;
+  font-size: 10px !important;
+  padding: 4px 10px !important;
+  opacity: 0.8;
+}
+
+.api-toggle-btn:hover {
+  opacity: 1;
+}
+
+.api-config-body {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: rgba(10, 10, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 8px 10px;
+  flex-wrap: wrap;
+}
+
+.api-config-body .url-input {
+  min-width: 240px;
+}
